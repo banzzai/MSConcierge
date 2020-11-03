@@ -18,7 +18,6 @@ async def name(ctx, *, number):
     pageStart = int(number) - int(number)%100 + 1
     pageEnd = int(number) - int(number)%100 + 100
     URL = f'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia_({pageStart}-{pageEnd})'
-    print(URL)
     page = requests.get(URL)
     soup = BeautifulSoup(page.content, 'html.parser')
     image = soup.select(f'img[alt$="{number}.jpg"]')[0]
@@ -68,7 +67,6 @@ async def unit(ctx, *, number):
         HpIndex = -1
         for line in lines:
             cells = line.select('td')
-            print(i)
             if i == 2:
                 msrarity = cells[3].get_text()
                 msclass = cells[0].get_text()
