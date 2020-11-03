@@ -1,6 +1,7 @@
-import discord, requests
+import discord, requests, discord_token
 from discord.ext import commands
 from bs4 import BeautifulSoup
+from discord_token import TOKEN
 
 client = commands.Bot(command_prefix = '.')
 
@@ -133,4 +134,4 @@ async def unit(ctx, *, number):
         await ctx.send(embed=embedVar)
         formIndex += 1
 
-client.run('NzcxODczMjA3NzI3Njg1NjYy.X5yc8Q.UuHOLQl6IyMfyDSz5llq7yI_-dE')
+client.run(TOKEN)
