@@ -2,7 +2,7 @@ import discord, requests, discord_token, random
 from discord.ext import commands
 from bs4 import BeautifulSoup
 from discord_token import TOKEN
-from constants import RED, GREEN, BLUE, LIGHT, DARK
+from constants import *
 
 client = commands.Bot(command_prefix = '.')
 
@@ -34,30 +34,93 @@ async def berries(ctx):
 async def berry(ctx):
     await superbias(ctx)
 
-@client.command()
-async def name(ctx, *, number):
+async def getUnitPage(number):
     pageStart = int(number) - int(number)%100 + 1
     pageEnd = int(number) - int(number)%100 + 100
     URL = f'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia_({pageStart}-{pageEnd})'
+    
     page = requests.get(URL)
     soup = BeautifulSoup(page.content, 'html.parser')
     image = soup.select(f'img[alt$="{number}.jpg"]')[0]
+
+    link = image.find_parent("a")
+    linkHref = link['href']
+    newLink = link.find_next_sibling()
+    #There is a link, but it's to create the wiki entry, so no result for our purpose
+    if (str(newLink).find(CREATE_WIKI_PAGE_HREF) != -1):
+        return None
+    
+    pageUrl = f'https://monster-strike-enjp.fandom.com{linkHref}'
+
     try:
-        imgSrc = image['data-src']
-    except KeyError:
-        imgSrc = image['src']
-    link = image.find_parent("a")['href']
-    await ctx.send(f'{imgSrc}')
-    await ctx.send(f'https://monster-strike-enjp.fandom.com{link}')
+        detailpage = requests.get(pageUrl)
+    except:
+        pageUrl = None
+
+    return pageUrl
+
+@client.command()
+async def name(ctx, *, number, needHatcher=False):
+    unitPage = await getUnitPage(number)
+    if (unitPage is not None):
+        await ctx.send(f'{unitPage}')
+    else:
+        await ctx.send(f'https://monst.appbank.net/monster/{number}.html')
 
 @client.command()
 async def debug(ctx, *, number, allForms=True):
     await evo(ctx=ctx, number=number, silent=True)
 
+async def isHatcher(number):
+    unitPage = await getUnitPage(number)
+    print(f'number {number}, page {unitPage}')
+    if (unitPage is not None):
+        detailpage = requests.get(unitPage)
+        soup = BeautifulSoup(detailpage.content, 'html.parser')
+
+        forms = soup.select(f'table[border$="1"]')
+    
+        lines = forms[0].select('tr')
+
+        cells = lines[5].select('td')
+        if len(cells) == 0:
+            cells = lines[6].select('td')
+
+        msObtain = parseObtain(str(cells[1]))
+        return msObtain is not UNKNOWN
+    else:
+        return False
+
 @client.command()
 async def yolo(ctx):
-    number = random.randrange(192, 5164)
-    await name(ctx, number=number)
+    lastKnownUnit = 5164
+    hatcherFound = False
+    number = random.randrange(192, lastKnownUnit)
+    while (hatcherFound is False):
+        number = random.randrange(192, lastKnownUnit)
+        hatcherFound = await isHatcher(number)
+    await name(ctx, number=number, needHatcher=True)
+
+def parseObtain(obtainHTML):
+    if obtainHTML.find(MAIN_HATCHER_SEARCH) != -1:
+        return MAIN_HATCHER
+    elif obtainHTML.find(LEGENDS_HATCHER_SEARCH) != -1:
+        return LEGENDS_HATCHER
+    elif obtainHTML.find(GUARDIANS_HATCHER_SEARCH) != -1:
+        return GUARDIANS_HATCHER
+    elif obtainHTML.find(RED_STARS_SEARCH) != -1:
+        return RED_STARS_HATCHER
+    elif obtainHTML.find(AQUA_BANQUET_SEARCH) != -1:
+        return AQUA_BANQUET_HATCHER
+    elif obtainHTML.find(GREEN_FANTASY_SEARCH) != -1:
+        return GREEN_FANTASY_HATCHER
+    elif obtainHTML.find(STARLIGHT_MIRAGE_SEARCH) != -1:
+        return STARLIGHT_MIRAGE_HATCHER
+    elif obtainHTML.find(MIDNIGHT_PARTY_SEARCH) != -1:
+        return MIDNIGHT_PARTY_HATCHER
+    elif obtainHTML.find(MONSTER_DX_SEARCH) != -1:
+        return MONSTER_DX_HATCHER
+    return UNKNOWN
 
 @client.command()
 async def evo(ctx, *, number, allForms=True, silent=False):
@@ -149,6 +212,9 @@ async def evo(ctx, *, number, allForms=True, silent=False):
             elif i > 1 and len(cells) > 0:
                 if HpIndex == -1:
                     HpIndex = i
+                    #The HP line contains the "Obtain" field
+                    msObtain = parseObtain(str(cells[1]))
+                    print(msObtain)
 
                 if i < HpIndex + 3:
                     msCellInfos.append(cells[0].select('b')[0].get_text())
