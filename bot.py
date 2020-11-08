@@ -76,7 +76,14 @@ async def evo(ctx, *, number, allForms=True, silent=False):
 
     link = image.find_parent("a")['href']
 
-    detailpage = requests.get(f'https://monster-strike-enjp.fandom.com{link}')
+    try:
+        detailpage = requests.get(f'https://monster-strike-enjp.fandom.com{link}')
+    except:
+        await ctx.send("Wiki doesn't have it :(")
+        await ctx.send("Here's a link to a different database(jp)")
+        await ctx.send(f'https://monst.appbank.net/monster/{number}.html')
+        exit
+
     soup = BeautifulSoup(detailpage.content, 'html.parser')
     
     forms = soup.select(f'table[border$="1"]')
