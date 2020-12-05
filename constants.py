@@ -1,8 +1,11 @@
+#Monster colors
 RED = 0xff0000
 GREEN = 0x00ff00
 BLUE = 0x0000ff
 LIGHT = 0xffff00
 DARK = 0xff00ff
+
+#Hatcher names
 UNKNOWN = "Unknown"
 LEGENDS_HATCHER_SEARCH = "Legends_Hatcher"
 LEGENDS_HATCHER = "Legends Hatcher"
@@ -31,4 +34,16 @@ MONSTER_DX_HATCHER = "Monst DX"
 MAIN_HATCHER_SEARCH = "Hatcher"
 MAIN_HATCHER = "Hatcher"
 
+#Wiki links for a new page creation have this css class
 CREATE_WIKI_PAGE_HREF = 'class="new"'
+
+#When looking for a hatcher monster, the first 192 monsters can be skipped
+FIRST_HATCHER_MONSTER = 192
+
+#URL return type fields
+URL_FIELD = 'url'
+SOUP_FIELD = 'soup'
+URL_VALUE_NO_URL = 'None'
+
+#ENGLISH WIKI MONSTERPEDIA PAGE
+WIKI_PEDIA_PAGE = 'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia'

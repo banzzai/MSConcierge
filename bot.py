@@ -38,60 +38,98 @@ async def collab(ctx):
 async def berry(ctx):
     await superbias(ctx)
 
-def isInRange(number, soup):
-    #This should extract a link to the last pedia page, from the top menu (second) tab (first) dropdown link
-    lastPageLink = soup.select(f'ul[class$="wds-list wds-is-linked wds-has-bolded-items"]')[1].find("a")['href']
-    lastPediaNumer = int(lastPageLink[-5:-1])
-    
+def isInRange(number, requests):
+    page = requests.get(WIKI_PEDIA_PAGE)
+    soup = BeautifulSoup(page.content, 'html.parser')
+
+    linkTable = soup.select(f'table[class$="article-table"]')
+    links = linkTable[0].find_all('a')
+
+    lastPediaNumer = int(links[-1].get_text().split("-")[1])
+
     if (int(number) > lastPediaNumer):
         return False
     else:
         return True
 
+@client.command()
+async def page(ctx, number):
+    page = await getUnitPage(number, True)
+    await ctx.send(f'wiki: {page[URL_FIELD]}')
+
 async def getUnitPage(number, JPFallback=False):
+    
+    returnHTML = dict()
+    
+    #Empty string means we haven't looked for the wiki page html, "None" is when we found there wasn't any
+    returnHTML[SOUP_FIELD] = ""
+    #No url for the monster, by default
+    returnHTML[URL_FIELD] = URL_VALUE_NO_URL
+    
+    #Why you gotta be asking for a monster number that is higher than the most recent in the wiki?
+    if not isInRange(number, requests):
+        returnHTML[SOUP_FIELD] = None
+        returnHTML[URL_FIELD] = URL_VALUE_NO_URL
+        return returnHTML
+
     pageStart = int(number) - int(number)%100 + 1
     pageEnd = int(number) - int(number)%100 + 100
-    URL = f'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia_({pageStart}-{pageEnd})'
-    
-    page = requests.get(URL)
+    mainPage = f'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia_({pageStart}-{pageEnd})'
+
+    page = requests.get(mainPage)
     soup = BeautifulSoup(page.content, 'html.parser')
+
+    #We are looking for an image with the monster number, and it's associated href (the wiki page)
+    imageHTML = soup.select(f'img[alt$="{number}.jpg"]')
     
-    if not isInRange(number, soup):
-        return None
-
-    image = soup.select(f'img[alt$="{number}.jpg"]')[0]
-
-    link = image.find_parent("a")
-    linkHref = link['href']
-    newLink = link.find_next_sibling()
-    #There is a link, but it's to create the wiki entry, so no result for our purpose
-    if (str(newLink).find(CREATE_WIKI_PAGE_HREF) != -1):
-        pageUrl = f'https://monster-strike-enjp.fandom.com{linkHref}'
-
+    #It's possible there is no entry at all, even though we are on the right page for this monster (ex: 214)
+    if (len(imageHTML) > 0):
+        image = imageHTML[0]
+        
         try:
+            imgSrc = image['data-src']
+        except KeyError:
+            imgSrc = image['src']
+    else:
+        #No entry for that number
+        returnHTML[SOUP_FIELD] = None
+
+    if (returnHTML[SOUP_FIELD] is not None):
+        link = image.find_parent("a")
+        linkHref = link['href']
+        newLink = link.find_next_sibling()
+        #There is a link, but it's to create the wiki entry, so no result for our purpose
+        if (str(newLink).find(CREATE_WIKI_PAGE_HREF) == -1):
+            returnHTML[URL_FIELD] = f'https://monster-strike-enjp.fandom.com{linkHref}'
+            
             #Some links go nowhere so we're testing this one
-            detailPage = requests.get(pageUrl)
-        except:
-            detailPage = None
-
+            returnHTML[SOUP_FIELD] = requests.get(returnHTML[URL_FIELD])
+            if (returnHTML[SOUP_FIELD].status_code >= 400):
+                returnHTML[SOUP_FIELD] = None
+        else:
+            returnHTML[SOUP_FIELD] = None
+            
     #At this stage if detailPage is Empty we need to check JP wiki if desired
-    if detailPage is None and JPFallback:
-        pageUrl = f'https://monst.appbank.net/monster/{number}.html'
-        detailPage = requests.get(pageUrl)
+    if returnHTML[SOUP_FIELD] is None and JPFallback:
+        returnHTML[URL_FIELD] = f'https://monst.appbank.net/monster/{number}.html'
+        returnHTML[SOUP_FIELD] = requests.get(returnHTML[URL_FIELD])
+        
+        if (returnHTML[SOUP_FIELD].status_code >= 400):
+            returnHTML[SOUP_FIELD] = None
 
-        #Currently there is one image in the 404 page and it has 404 in its name. Hopefully that's a semi-reliable criteria
-        img = detailPage.find("img")['src']
-        print(f"img in jp page {img}")
+    #Let's reset the url value if all failed, before returning no result
+    if (returnHTML[SOUP_FIELD] == None):
+        returnHTML[URL_FIELD] = URL_VALUE_NO_URL
 
-    return detailPage
+    return returnHTML
 
 @client.command()
 async def name(ctx, *, number, needHatcher=False):
-    unitPage = await getUnitPage(number)
-    if (unitPage is not None):
-        await ctx.send(f'{unitPage}')
+    unitPage = await getUnitPage(number, True)
+    if (unitPage[SOUP_FIELD] is not None):
+        await ctx.send(f'{unitPage[URL_FIELD]}')
     else:
-        await ctx.send(f'https://monst.appbank.net/monster/{number}.html')
+        await noWiki(ctx, number)
 
 @client.command()
 async def debug(ctx, *, number, allForms=True):
@@ -100,8 +138,8 @@ async def debug(ctx, *, number, allForms=True):
 async def isHatcher(number):
     detailpage = await getUnitPage(number)
     
-    if (detailpage is not None):
-        soup = BeautifulSoup(detailpage.content, 'html.parser')
+    if (detailpage[SOUP_FIELD] is not None):
+        soup = BeautifulSoup(detailpage[SOUP_FIELD].content, 'html.parser')
 
         forms = soup.select(f'table[border$="1"]')
     
@@ -120,9 +158,9 @@ async def isHatcher(number):
 async def yolo(ctx):
     lastKnownUnit = 5164
     hatcherFound = False
-    number = random.randrange(192, lastKnownUnit)
+    number = random.randrange(FIRST_HATCHER_MONSTER, lastKnownUnit)
     while (hatcherFound is False):
-        number = random.randrange(192, lastKnownUnit)
+        number = random.randrange(FIRST_HATCHER_MONSTER, lastKnownUnit)
         hatcherFound = await isHatcher(number)
     await name(ctx, number=number, needHatcher=True)
 
@@ -154,17 +192,17 @@ async def noWiki(ctx, number):
 
 @client.command()
 async def evo(ctx, *, number, allForms=True, silent=False):
+    #Why you gotta be asking for a monster number that is higher than the most recent in the wiki?
+    if not isInRange(number, requests):
+        await noWiki(ctx, number)
+    
     pageStart = int(number) - int(number)%100 + 1
     pageEnd = int(number) - int(number)%100 + 100
     URL = f'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia_({pageStart}-{pageEnd})'
 
     page = requests.get(URL)
     soup = BeautifulSoup(page.content, 'html.parser')
-    
-    #Why you gotta be asking for a monster number that is higher than the most recent in the wiki?
-    if not isInRange(number, soup):
-        await noWiki(ctx, number)
-    
+
     #We are looking for an image with the monster number, and it's associated href (the wiki page)
     imageHTML = soup.select(f'img[alt$="{number}.jpg"]')
     
@@ -196,11 +234,6 @@ async def evo(ctx, *, number, allForms=True, silent=False):
     
     name = soup.select(f'h1[id$="firstHeading"]')[0].get_text()
     realNames = [name]
-    
-    #names = soup.select(f'span[class$="mw-headline"]')
-    #for nameline in names:
-    #    if nameline.get_text().find("(") >= 0:
-    #        realNames.append(nameline.get_text())
 
     formIndex = 0
     for form in forms:
