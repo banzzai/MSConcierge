@@ -65,6 +65,7 @@ async def getUnitPage(number, JPFallback=False):
     returnHTML[SOUP_FIELD] = ""
     #No url for the monster, by default
     returnHTML[URL_FIELD] = URL_VALUE_NO_URL
+    returnHTML[SUCCESS_FIELD] = False
     
     #Why you gotta be asking for a monster number that is higher than the most recent in the wiki?
     if not isInRange(number, requests):
@@ -85,11 +86,6 @@ async def getUnitPage(number, JPFallback=False):
     #It's possible there is no entry at all, even though we are on the right page for this monster (ex: 214)
     if (len(imageHTML) > 0):
         image = imageHTML[0]
-        
-        try:
-            imgSrc = image['data-src']
-        except KeyError:
-            imgSrc = image['src']
     else:
         #No entry for that number
         returnHTML[SOUP_FIELD] = None
@@ -106,6 +102,9 @@ async def getUnitPage(number, JPFallback=False):
             returnHTML[SOUP_FIELD] = requests.get(returnHTML[URL_FIELD])
             if (returnHTML[SOUP_FIELD].status_code >= 400):
                 returnHTML[SOUP_FIELD] = None
+            else:
+                #We ran out of ways to fail. This time we got a wiki page!!
+                returnHTML[SUCCESS_FIELD] = True
         else:
             returnHTML[SOUP_FIELD] = None
             
@@ -129,7 +128,7 @@ async def name(ctx, *, number, needHatcher=False):
     if (unitPage[SOUP_FIELD] is not None):
         await ctx.send(f'{unitPage[URL_FIELD]}')
     else:
-        await noWiki(ctx, number)
+        await noWiki(ctx, unitPage[URL_FIELD])
 
 @client.command()
 async def debug(ctx, *, number, allForms=True):
@@ -185,51 +184,58 @@ def parseObtain(obtainHTML):
         return MONSTER_DX_HATCHER
     return UNKNOWN
 
-async def noWiki(ctx, number):
-    await ctx.send("Wiki doesn't have it :(")
-    await ctx.send("Here's a link to a different database(jp)")
-    await ctx.send(f'https://monst.appbank.net/monster/{number}.html')
+async def noWiki(ctx, url):
+    if (url is not None):
+        await ctx.send("Wiki doesn't have it :(")
+        await ctx.send("Here's a link to a different database:")
+        await ctx.send(f'{url}')
+    else:
+        await ctx.send("This unit can't be found in the game anymore.")
 
 @client.command()
 async def evo(ctx, *, number, allForms=True, silent=False):
-    #Why you gotta be asking for a monster number that is higher than the most recent in the wiki?
-    if not isInRange(number, requests):
-        await noWiki(ctx, number)
+    unitPage = await getUnitPage(number, True)
     
-    pageStart = int(number) - int(number)%100 + 1
-    pageEnd = int(number) - int(number)%100 + 100
-    URL = f'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia_({pageStart}-{pageEnd})'
+    #Why you gotta be asking for a monster number that is higher than the most recent in the wiki?
+    if (unitPage[SUCCESS_FIELD] is False):
+        print('no wiki exit')
+        await noWiki(ctx, unitPage[URL_FIELD])
+        exit
+    
+    #pageStart = int(number) - int(number)%100 + 1
+    #pageEnd = int(number) - int(number)%100 + 100
+    #URL = f'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia_({pageStart}-{pageEnd})'
 
-    page = requests.get(URL)
-    soup = BeautifulSoup(page.content, 'html.parser')
+    #page = requests.get(URL)
+    #soup = BeautifulSoup(page.content, 'html.parser')
 
     #We are looking for an image with the monster number, and it's associated href (the wiki page)
-    imageHTML = soup.select(f'img[alt$="{number}.jpg"]')
+    #imageHTML = soup.select(f'img[alt$="{number}.jpg"]')
     
     #It's possible there is no entry at all, even though we are on the right page for this monster (ex: 214)
-    if (len(imageHTML) > 0):
-        image = imageHTML[0]
-    else:
+    #if (len(imageHTML) > 0):
+    #    image = imageHTML[0]
+    #else:
         #No entry for that number
-        await noWiki(ctx, number)
-        exit
+    #    await noWiki(ctx, unitPage[URL_FIELD])
+    #    exit
 
-    try:
-        imgSrc = image['data-src']
-    except KeyError:
-        imgSrc = image['src']
+    #try:
+    #    imgSrc = image['data-src']
+    #except KeyError:
+    #    imgSrc = image['src']
 
-    link = image.find_parent("a")['href']
+    #link = image.find_parent("a")['href']
 
-    try:
-        detailpage = requests.get(f'https://monster-strike-enjp.fandom.com{link}')
-    except:
+    #try:
+    #    detailpage = requests.get(f'https://monster-strike-enjp.fandom.com{link}')
+    #except:
         #There is nothing behind the wiki link
-        await noWiki(ctx, number)
-        exit
+    #    await noWiki(ctx, unitPage[URL_FIELD])
+    #    exit
 
+    detailpage = unitPage[SOUP_FIELD]
     soup = BeautifulSoup(detailpage.content, 'html.parser')
-    
     forms = soup.select(f'table[border$="1"]')
     
     name = soup.select(f'h1[id$="firstHeading"]')[0].get_text()
@@ -290,7 +296,6 @@ async def evo(ctx, *, number, allForms=True, silent=False):
                     HpIndex = i
                     #The HP line contains the "Obtain" field
                     msObtain = parseObtain(str(cells[1]))
-                    print(msObtain)
 
                 if i < HpIndex + 3:
                     msCellInfos.append(cells[0].select('b')[0].get_text())

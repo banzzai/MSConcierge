@@ -43,7 +43,8 @@ FIRST_HATCHER_MONSTER = 192
 #URL return type fields
 URL_FIELD = 'url'
 SOUP_FIELD = 'soup'
-URL_VALUE_NO_URL = 'None'
+SUCCESS_FIELD = 'success'
+URL_VALUE_NO_URL = None
 
 #ENGLISH WIKI MONSTERPEDIA PAGE
 WIKI_PEDIA_PAGE = 'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia'
