@@ -202,38 +202,6 @@ async def evo(ctx, *, number, allForms=True, silent=False):
         await noWiki(ctx, unitPage[URL_FIELD])
         exit
     
-    #pageStart = int(number) - int(number)%100 + 1
-    #pageEnd = int(number) - int(number)%100 + 100
-    #URL = f'https://monster-strike-enjp.fandom.com/wiki/Monsterpedia_({pageStart}-{pageEnd})'
-
-    #page = requests.get(URL)
-    #soup = BeautifulSoup(page.content, 'html.parser')
-
-    #We are looking for an image with the monster number, and it's associated href (the wiki page)
-    #imageHTML = soup.select(f'img[alt$="{number}.jpg"]')
-    
-    #It's possible there is no entry at all, even though we are on the right page for this monster (ex: 214)
-    #if (len(imageHTML) > 0):
-    #    image = imageHTML[0]
-    #else:
-        #No entry for that number
-    #    await noWiki(ctx, unitPage[URL_FIELD])
-    #    exit
-
-    #try:
-    #    imgSrc = image['data-src']
-    #except KeyError:
-    #    imgSrc = image['src']
-
-    #link = image.find_parent("a")['href']
-
-    #try:
-    #    detailpage = requests.get(f'https://monster-strike-enjp.fandom.com{link}')
-    #except:
-        #There is nothing behind the wiki link
-    #    await noWiki(ctx, unitPage[URL_FIELD])
-    #    exit
-
     detailpage = unitPage[SOUP_FIELD]
     soup = BeautifulSoup(detailpage.content, 'html.parser')
     forms = soup.select(f'table[border$="1"]')
@@ -316,7 +284,7 @@ async def evo(ctx, *, number, allForms=True, silent=False):
         
         if (allForms == False) and (msNumber != int(number)):
             continue
-        embedVar = discord.Embed(title=f"{realNames[formIndex]}", description=f"{msrarity} {msclass}", color=msColor)
+        embedVar = discord.Embed(title=f"{unitPage[URL_FIELD]}", description=f"{msrarity} {msclass}", color=msColor)
         embedVar.add_field(name=f"{mssling}", value=f"{msbias} type", inline=False)
 
         embedVar.add_field(name=f"Ability: {msAbility}", value=f"Gauge: {msGauge}", inline=False)
@@ -340,7 +308,7 @@ async def evo(ctx, *, number, allForms=True, silent=False):
         #Bubble image not currently used but that might very well change
         #if (msBubbleCell.find("Special:Upload") != -1):
         #    msBubbleCell = formImage
-        embedVar.set_author(name=f"#{msNumber}", icon_url=formImage)
+        embedVar.set_author(name=f"#{msNumber}: {realNames[formIndex]}", icon_url=formImage)
 
         #Main thumbnail
         msFullImage = form.find_previous_sibling("div").find("a")['href']
