@@ -1,4 +1,5 @@
 import discord, requests, discord_token, random
+from urllib.parse import unquote
 from discord.ext import commands
 from bs4 import BeautifulSoup
 from discord_token import TOKEN
@@ -37,6 +38,20 @@ async def collab(ctx):
 @client.command()
 async def berry(ctx):
     await superbias(ctx)
+
+@client.command()
+async def msnews(ctx):
+    #Not in the mood to setup youtube apis, and youtube itself seems pretty parse-resistant, so I am going through a google search.
+    youtubeSearch = 'https://www.google.com/search?q=%E3%83%A2%E3%83%B3%E3%82%B9%E3%83%88%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9+site:youtube.com&tbs=qdr:w'
+    youtube = requests.get(youtubeSearch)
+    soup = BeautifulSoup(youtube.content, 'html.parser')
+    for link in soup.find_all('a'):
+        href = unquote(link['href'])                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+        youtubePos = href.find('https://www.youtube.com/watch')
+        if (youtubePos != -1):
+            andPos = href.find('&')
+            await ctx.send(f'{href[youtubePos:andPos]}')
+            return
 
 def isInRange(number, requests):
     page = requests.get(WIKI_PEDIA_PAGE)
