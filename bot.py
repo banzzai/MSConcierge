@@ -36,6 +36,10 @@ async def collab(ctx):
     await ctx.send('https://twitter.com/EngMonst/status/1327139304204886019/photo/1')
 
 @client.command()
+async def div(ctx):
+    await ctx.send('https://cdn.discordapp.com/attachments/771907951023357972/786648082141413417/unknown.png')
+
+@client.command()
 async def berry(ctx):
     await superbias(ctx)
 
@@ -52,6 +56,18 @@ async def msnews(ctx):
             andPos = href.find('&')
             await ctx.send(f'{href[youtubePos:andPos]}')
             return
+
+@client.command()
+async def pedia(ctx):
+    baseUrl = 'https://xn--eckwa2aa3a9c8j8bve9d.gamewith.jp/db/monster/index'
+    postData = {'attribute_type_id': 1, 'hit_type_id': 1, 'rarity_type_id': 3, 'take_type_id': 1, 'ability_id': {10, 119, 141, 9, 123, 155}}
+    #, 'ability_id': {10, 119, 141}, 'ability_id': {9, 123, 155}
+
+    MSpedia = requests.post(baseUrl, data = postData)
+    soup = BeautifulSoup(MSpedia.content, 'html.parser')
+    print(soup)
+
+    await ctx.send(f'OK')
 
 def isInRange(number, requests):
     page = requests.get(WIKI_PEDIA_PAGE)
