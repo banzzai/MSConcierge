@@ -50,7 +50,7 @@ async def msnews(ctx):
     youtube = requests.get(youtubeSearch)
     soup = BeautifulSoup(youtube.content, 'html.parser')
     for link in soup.find_all('a'):
-        href = unquote(link['href'])                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+        href = unquote(link['href'])
         youtubePos = href.find('https://www.youtube.com/watch')
         if (youtubePos != -1):
             andPos = href.find('&')
